@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>¿A quién me conviene votar? 29-N</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--txt:#e2e8f0;--mut:#94a3b8;--acc:#38bdf8}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--txt);line-height:1.5}
+  header{padding:2rem 1rem;text-align:center;background:linear-gradient(135deg,#1e3a8a,#7f1d1d)}
+  h1{margin:0 0 .3rem}
+  main{max-width:900px;margin:auto;padding:1rem}
+  section{background:var(--card);border-radius:12px;padding:1.2rem;margin:1rem 0}
+  h2{margin-top:0;color:var(--acc)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem}
+  .party{border-left:5px solid;padding:.6rem .9rem;background:#0f172a;border-radius:8px}
+  .party h3{margin:0 0 .4rem}
+  .party ul{margin:0;padding-left:1.1rem;color:var(--mut);font-size:.9rem}
+  label{display:block;margin:.4rem 0 .2rem}
+  input[type=number],input[type=range],select{width:100%}
+  input[type=number],select{padding:.5rem;border-radius:8px;border:0}
+  .q{padding:.8rem 0;border-bottom:1px solid #334155}
+  .q small{color:var(--mut)}
+  .row{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+  .row>*{flex:1;min-width:140px}
+  button{background:var(--acc);color:#0f172a;border:0;padding:.8rem 1.5rem;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;width:100%;margin-top:1rem}
+  .bar{height:26px;border-radius:6px;margin:.3rem 0;display:flex;align-items:center;padding-left:.6rem;color:#fff;font-weight:700;min-width:60px;transition:width .5s}
+  .note{color:var(--mut);font-size:.85rem}
+</style>
+</head>
+<body>
+<header>
+  <h1>🗳️ ¿A quién me conviene votar?</h1>
+  <div>Elecciones generales · 29 de noviembre de 2026</div>
+</header>
+<main>
+
+<section>
+  <h2>1. Qué propone cada partido (resumen)</h2>
+  <div class="grid" id="parties"></div>
+  <p class="note">Resumen orientativo de líneas generales. Consulta siempre los programas oficiales.</p>
+</section>
+
+<section>
+  <h2>2. Tu situación</h2>
+  <label for="sueldo">Sueldo bruto anual (€)</label>
+  <input type="number" id="sueldo" value="28000" min="0" step="500">
+  <label for="sit">Situación</label>
+  <select id="sit">
+    <option value="trab">Trabajador por cuenta ajena</option>
+    <option value="aut">Autónomo</option>
+    <option value="inq">Trabajador que vive de alquiler</option>
+    <option value="prop">Propietario / con hipoteca</option>
+    <option value="pen">Pensionista</option>
+  </select>
+</section>
+
+<section>
+  <h2>3. Tus ideas</h2>
+  <p class="note">Para cada tema: tu postura (de −2 totalmente en contra a +2 totalmente a favor) y su importancia para ti.</p>
+  <div id="questions"></div>
+  <button onclick="calcular()">Calcular afinidad</button>
+</section>
+
+<section id="resultado" style="display:none">
+  <h2>Resultado</h2>
+  <div id="bars"></div>
+  <p id="eco"></p>
+  <p class="note">Herramienta orientativa, no una recomendación de voto. Ningún partido coincide al 100 % contigo: revisa los programas completos.</p>
+</section>
+
+</main>
+<script>
+/* Edita aquí posiciones (-2..+2) de cada partido en cada tema */
+const partidos = {
+  PP:     {color:"#1d4ed8", pro:["Bajar impuestos y simplificar el IRPF","Pensiones actualizadas con el IPC","Más oferta de suelo y vivienda; oposición a topar alquileres","Control migratorio más estricto, vinculado al empleo"]},
+  PSOE:   {color:"#dc2626", pro:["Ampliar vivienda pública y proteger inquilinos","Subidas del SMI y refuerzo de pensiones","Sanidad pública y transición energética","Política fiscal progresiva moderada"]},
+  Vox:    {color:"#65a30d", pro:["Derogar la Ley de Vivienda; quitar IVA a la primera vivienda","Rebajar impuestos y recortar gasto superfluo","Endurecer inmigración y facilitar expulsiones","Recentralizar competencias"]},
+  Sumar:  {color:"#e11d73", pro:["Regular alquileres y más vivienda pública","Subir impuestos a grandes fortunas y empresas","Reducción de jornada y subida del SMI","Sanidad pública reforzada"]},
+  Podemos:{color:"#7e22ce", pro:["Control estricto de precios de vivienda","Gravar fuertemente grandes patrimonios","Blindar pensiones y servicios públicos","Regularización de migrantes"]}
+};
+
+const temas = [
+  {t:"Bajar impuestos (IRPF) aunque implique recortar gasto público", p:{PP:2,PSOE:-1,Vox:2,Sumar:-2,Podemos:-2}, fiscal:true},
+  {t:"Subir impuestos a grandes fortunas y grandes empresas", p:{PP:-2,PSOE:1,Vox:-2,Sumar:2,Podemos:2}, fiscal:true},
+  {t:"Regular y topar los precios del alquiler", p:{PP:-2,PSOE:2,Vox:-2,Sumar:2,Podemos:2}},
+  {t:"Subir por ley el salario mínimo más rápido", p:{PP:-1,PSOE:2,Vox:-1,Sumar:2,Podemos:2}},
+  {t:"Más gasto público en sanidad y educación (frente a colaboración privada)", p:{PP:-1,PSOE:2,Vox:-1,Sumar:2,Podemos:2}},
+  {t:"Endurecer el control de la inmigración y facilitar expulsiones", p:{PP:1,PSOE:-1,Vox:2,Sumar:-2,Podemos:-2}},
+  {t:"Recentralizar competencias de las comunidades autónomas", p:{PP:1,PSOE:-1,Vox:2,Sumar:-1,Podemos:-1}},
+  {t:"Acelerar la transición energética y las políticas climáticas", p:{PP:-1,PSOE:2,Vox:-2,Sumar:2,Podemos:2}}
+];
+
+document.getElementById("parties").innerHTML = Object.entries(partidos).map(([n,d])=>
+  `<div class="party" style="border-color:${d.color}"><h3>${n}</h3><ul>${d.pro.map(x=>`<li>${x}</li>`).join("")}</ul></div>`).join("");
+
+document.getElementById("questions").innerHTML = temas.map((x,i)=>
+  `<div class="q"><strong>${x.t}</strong>
+   <div class="row">
+     <div><small>Mi postura: <b id="pv${i}">0</b></small><input type="range" id="pos${i}" min="-2" max="2" value="0" oninput="pv${i}.textContent=this.value"></div>
+     <div><small>Importancia: <b id="iv${i}">2</b>/3</small><input type="range" id="imp${i}" min="0" max="3" value="2" oninput="iv${i}.textContent=this.value"></div>
+   </div></div>`).join("");
+
+function calcular(){
+  const sueldo = +document.getElementById("sueldo").value || 0;
+  const sit = document.getElementById("sit").value;
+  const score = {}, max = {};
+  Object.keys(partidos).forEach(k=>{score[k]=0;max[k]=0});
+
+  temas.forEach((x,i)=>{
+    const u = +document.getElementById("pos"+i).value;
+    const w = +document.getElementById("imp"+i).value;
+    Object.keys(partidos).forEach(k=>{
+      score[k] += w * (1 - Math.abs(u - x.p[k]) / 4);
+      max[k]   += w;
+    });
+  });
+
+  /* Empujón económico orientativo según renta y situación */
+  const bonus = {PP:0,PSOE:0,Vox:0,Sumar:0,Podemos:0};
+  let txt;
+  if (sueldo < 22000){
+    bonus.PSOE=.6; bonus.Sumar=.9; bonus.Podemos=.9;
+    txt="Con tu nivel de ingresos, las políticas de subida del SMI, vivienda pública y gasto social suelen pesar más que una rebaja del IRPF.";
+  } else if (sueldo < 45000){
+    bonus.PP=.4; bonus.PSOE=.4; bonus.Vox=.3;
+    txt="Con ingresos medios, tu balance depende sobre todo de vivienda, tramos del IRPF y servicios públicos; el efecto económico es mixto.";
+  } else {
+    bonus.PP=.9; bonus.Vox=.8;
+    txt="Con ingresos altos, las rebajas de IRPF y la oposición a nuevos impuestos a patrimonios suelen resultarte más favorables en lo estrictamente económico.";
+  }
+  if (sit==="inq"){ bonus.PSOE+=.5; bonus.Sumar+=.6; bonus.Podemos+=.6; txt+=" Como inquilino, la regulación del alquiler te afecta directamente.";}
+  if (sit==="prop"){ bonus.PP+=.4; bonus.Vox+=.5; txt+=" Como propietario, importan los impuestos a la vivienda y la oferta de suelo.";}
+  if (sit==="aut"){ bonus.PP+=.5; bonus.Vox+=.5; txt+=" Como autónomo, cuentan las cuotas y la carga fiscal.";}
+  if (sit==="pen"){ bonus.PSOE+=.4; bonus.Sumar+=.4; bonus.Podemos+=.4; bonus.PP+=.3; txt+=" Como pensionista, todos prometen mantener el IPC; mira cómo plantea cada uno la sostenibilidad.";}
+
+  const res = Object.keys(partidos).map(k=>{
+    const total = max[k] + 1.5;
+    return [k, Math.round(100 * (score[k] + bonus[k]) / total)];
+  }).map(([k,v])=>[k,Math.min(v,100)]).sort((a,b)=>b[1]-a[1]);
+
+  document.getElementById("bars").innerHTML = res.map(([k,v])=>
+    `<div class="bar" style="width:${Math.max(v,8)}%;background:${partidos[k].color}">${k} ${v}%</div>`).join("");
+  document.getElementById("eco").textContent = "Factor económico (sueldo " + sueldo.toLocaleString("es-ES") + " €): " + txt;
+  const r = document.getElementById("resultado");
+  r.style.display="block"; r.scrollIntoView({behavior:"smooth"});
+}
+</script>
+</body>
+</html>
